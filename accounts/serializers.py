@@ -1,4 +1,4 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group, Permission
 from rest_framework import serializers
 
 
@@ -26,4 +26,17 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+    
+
+class GroupSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['id', 'name']
+        read_only_fields = ['id']
+
         
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ['id', 'name', 'codename', 'content_type']
+        read_only_fields = ['id']
