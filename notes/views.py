@@ -1,5 +1,5 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated, AllowAny, SAFE_METHODS
+from rest_framework.permissions import AllowAny, DjangoModelPermissions,  SAFE_METHODS
 from .serializers import NoteSerializer, CategorySerializer
 from .models import Note, Category
 
@@ -11,7 +11,7 @@ class NoteViewSet(ModelViewSet):
     def get_permissions(self):
         if self.request.method in SAFE_METHODS:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [DjangoModelPermissions()]
 
 
 class CategoryViewSet(ModelViewSet):
@@ -21,4 +21,4 @@ class CategoryViewSet(ModelViewSet):
     def get_permissions(self):
         if self.request.method in SAFE_METHODS:
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [DjangoModelPermissions()]
