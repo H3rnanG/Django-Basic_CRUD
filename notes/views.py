@@ -1,6 +1,7 @@
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import AllowAny, DjangoModelPermissions,  SAFE_METHODS
+from rest_framework.permissions import AllowAny, IsAuthenticated, DjangoModelPermissions, SAFE_METHODS
 from .serializers import NoteSerializer, CategorySerializer
+from .permissions import IsOwnerOrAdmin
 from .models import Note, Category
 
 
@@ -11,7 +12,12 @@ class NoteViewSet(ModelViewSet):
     def get_permissions(self):
         if self.request.method in SAFE_METHODS:
             return [AllowAny()]
-        return [DjangoModelPermissions()]
+        elif self.request.method == 'POST':
+            return [IsAuthenticated()]
+        return [IsOwnerOrAdmin()]
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class CategoryViewSet(ModelViewSet):

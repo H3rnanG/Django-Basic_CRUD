@@ -15,6 +15,7 @@ class GroupViewSet(ModelViewSet):
     queryset = Group.objects.all().order_by('name')
     permission_classes = [IsAdminUser]
     
+
 class PermissionViewSet(ModelViewSet):
     serializer_class = PermissionSerializer
     queryset = Permission.objects.all().order_by('content_type__app_label', 'codename')
