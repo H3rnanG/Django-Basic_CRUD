@@ -2,16 +2,20 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated, DjangoModelPermissions, SAFE_METHODS
+from django_filters import rest_framework as filters
 from django.db.models import Q
 from .serializers import NoteSerializer, CategorySerializer
 from .permissions import IsOwnerOrAdmin
 from .models import Note, Category
+from .filters import NoteFilter
 
 
 class NoteViewSet(ModelViewSet):
     queryset = Note.objects.all()
     serializer_class = NoteSerializer
     permission_classes = [IsOwnerOrAdmin]
+    filter_backends = [filters.DjangoFilterBackend]
+    filterset_class = NoteFilter
 
     def get_queryset(self):
         user = self.request.user
