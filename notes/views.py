@@ -26,13 +26,6 @@ class NoteViewSet(ModelViewSet):
             return Note.objects.filter(is_published=True)
         
         return Note.objects.all()
-
-    # def get_permissions(self):
-    #     if self.request.method in SAFE_METHODS:
-    #         return [AllowAny()]
-    #     elif self.request.method == 'POST':
-    #         return [IsAuthenticated()]
-    #     return [IsOwnerOrAdmin()]
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
