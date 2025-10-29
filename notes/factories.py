@@ -11,7 +11,7 @@ class CategoryFactory(factory.django.DjangoModelFactory):
         model = Category
         django_get_or_create = ('title', 'description')
         
-    title = factory.Sequence(lambda n: 'Category %d' % n)
+    title = factory.Faker('sentence', nb_words=5)
     description = factory.Faker('sentence', nb_words=10)
     
     @factory.post_generation
@@ -36,7 +36,7 @@ class NoteFactory(factory.django.DjangoModelFactory):
         model = Note
         django_get_or_create = ('title', 'description', 'user', 'category', 'is_published')
 
-    title = factory.Sequence(lambda n: 'Note %d' % n)
+    title = factory.Faker('sentence', nb_words=5)
     description = factory.Faker('sentence', nb_words=10)
     is_published = factory.Faker('boolean')
     user = factory.LazyFunction(lambda: random.choice(list(get_user_model().objects.all())))

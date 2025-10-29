@@ -34,9 +34,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Fresh flag is set. Truncating data..."))
         
         if all:
-            UserFactory.create_batch(5)
-            CategoryFactory.create_batch(5)
-            NoteFactory.create_batch(10)
+            UserFactory.create_batch(20)
+            CategoryFactory.create_batch(10)
+            NoteFactory.create_batch(40)
             return
         
         if users:
