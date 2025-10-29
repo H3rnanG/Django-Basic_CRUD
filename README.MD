@@ -1,105 +1,172 @@
 # Basic CRUD API (Django + DRF)
 
-Proyecto de práctica con Django y Django REST Framework que expone una API CRUD para notas y categorías, autenticación JWT y endpoints de administración para usuarios, grupos y permisos.
+Production‑ready practice project exposing a CRUD API for Notes and Categories using Django and Django REST Framework (DRF). It includes JWT authentication, admin endpoints for Users/Groups/Permissions, filtering, full‑text search (PostgreSQL), ordering, and pagination.
 
-## Funcionalidades
+## Features
 
-- Autenticación JWT: emisión, refresco y blacklist de tokens.
-- API REST para Notas y Categorías con DRF ViewSets y router.
-- Permisos por endpoint:
-  - Notas: lectura pública; crear requiere usuario autenticado; actualizar/eliminar restringido a dueño o admin.
-  - Categorías: lectura pública; crear/actualizar/eliminar controlado por permisos de modelo (DjangoModelPermissions).
-- Endpoints de administración (solo admin) para Usuarios, Grupos y Permisos.
-- Navegación con DRF Browsable API (`/api-auth/` para login de sesión en el navegador).
-- CORS preparado (lista de orígenes vacía de inicio).
-- Dockerfile y docker-compose con Postgres.
+- Authentication: JWT with access/refresh and blacklist (SimpleJWT).
+- Notes and Categories: ViewSets routed via DRF router.
+- Permissions by endpoint:
+  - Notes: public read; create requires authentication; update/delete require owner or staff.
+  - Categories: public read; create/update/delete guarded by Django model permissions.
+- Accounts admin endpoints: Users, Groups, and Permissions (admin‑only).
+- Filtering and search:
+  - Filter notes by publication, user, category, date range.
+  - Order by created date or category; full‑text search (PostgreSQL) across title/description.
+- Pagination: page‑number pagination (configurable page size).
+- DRF browsable API: quick navigation and session login at `/api-auth/`.
+- CORS ready: allowlist empty by default.
+- Docker setup with PostgreSQL.
 
-## Modelos
+## Tech Stack
 
-- `Category`:
-  - `title` (CharField, 50)
-  - `description` (CharField, 100)
-  - `created_at` (DateField auto)
-  - `updated_at` (DateField auto)
-- `Note`:
-  - `title` (CharField, 200)
-  - `description` (TextField)
-  - `user` (FK a `auth.User`; se asigna automáticamente al crear)
-  - `category` (FK a `Category`)
-  - `is_published` (BooleanField, default False)
-  - `created_at`/`updated_at` (DateTime auto)
+- Python 3.12/3.13
+- Django 5.1.x
+- Django REST Framework 3.16.x
+- SimpleJWT (+ blacklist)
+- django-filter
+- PostgreSQL (recommended; required for full‑text search). SQLite works for basic CRUD.
 
-## Serializers
+## Data Model
 
-- `NoteSerializer` (Hyperlinked): `fields='__all__'`; `user` es solo lectura y expone `user.id`.
-- `CategorySerializer` (Hyperlinked): `fields='__all__'`.
-- `UserSerializer` (Hyperlinked): campos de usuario + `password` (solo escritura), `groups`, `permissions`.
-  - Sobrescribe `create` y `update` para hashear contraseña y asignar grupos/permisos.
-- `GroupSerializer` (Hyperlinked): incluye `permissions`.
-- `PermissionSerializer` (ModelSerializer): campos básicos.
-
-## Permisos por vista
-
-- `NoteViewSet`:
-  - `GET/HEAD/OPTIONS`: `AllowAny` (público).
-  - `POST`: `IsAuthenticated` (requiere JWT); `perform_create` asigna `user=request.user`.
-  - `PUT/PATCH/DELETE`: `IsOwnerOrAdmin` (dueño del objeto o staff admin).
-- `CategoryViewSet`:
-  - `GET/HEAD/OPTIONS`: `AllowAny`.
-  - Mutaciones: `DjangoModelPermissions` (requiere permisos de modelo asignados en Django).
-- `UserViewSet`, `GroupViewSet`, `PermissionViewSet`: `IsAdminUser` (solo administradores).
+- Category
+  - `title`: Char(50)
+  - `description`: Char(100)
+  - `created_at` / `updated_at`: auto Date
+- Note
+  - `title`: Char(200)
+  - `description`: Text
+  - `user`: FK to `auth.User` (assigned on create)
+  - `category`: FK to `Category`
+  - `is_published`: Bool (default False)
+  - `created_at` / `updated_at`: auto DateTime
 
 ## Endpoints
 
-Base: `http://<host>:8000/`
+Base URL: `http://<host>:8000/`
 
 - Admin: `GET /admin/`
-- DRF Login (navegable): `GET /api-auth/login/`
-- JWT:
-  - `POST /api/token/`  (body: `username`, `password`)
-  - `POST /api/token/refresh/`  (body: `refresh`)
+- DRF login (browsable): `GET /api-auth/login/`
+- JWT
+  - `POST /api/token/` (body: `username`, `password`)
+  - `POST /api/token/refresh/` (body: `refresh`)
   - `POST /api/token/blacklist/` (body: `refresh`)
-- Notas y Categorías:
+- Notes & Categories
   - `GET/POST /api/notes/`
   - `GET/PUT/PATCH/DELETE /api/notes/{id}/`
+  - `GET /api/notes/my-notes/` (authenticated; returns your notes)
   - `GET/POST /api/categories/`
   - `GET/PUT/PATCH/DELETE /api/categories/{id}/`
-- Administración de cuentas (solo admin):
+- Accounts (admin‑only)
   - `GET/POST /api/users/`, `GET/PUT/PATCH/DELETE /api/users/{id}/`
   - `GET/POST /api/groups/`, `GET/PUT/PATCH/DELETE /api/groups/{id}/`
   - `GET/POST /api/permissions/`, `GET/PUT/PATCH/DELETE /api/permissions/{id}/`
 
-## Configuración y entorno
+## Authentication & Authorization
 
-- Django: `5.1.x`
-- DRF: `3.16.x`
-- JWT: `djangorestframework-simplejwt` con blacklist.
-- DB: configurable por variables de entorno; docker-compose usa Postgres.
-- CORS: `CORS_ALLOWED_ORIGINS = []` (ajustar para frontends).
+- JWT: Use SimpleJWT access token on requests: `Authorization: Bearer <access>`.
+- Notes
+  - List: public; if authenticated, you see your notes + published notes; otherwise only published notes.
+  - Retrieve: published notes are public; private notes require owner or staff.
+  - Create: requires authentication; the server assigns `user=request.user`.
+  - Update/Delete: owner or staff only.
+- Categories
+  - Safe methods (GET/HEAD/OPTIONS): public.
+  - Mutations: require Django model permissions (`add`, `change`, `delete`).
+- Admin endpoints: `IsAdminUser` (staff) only.
 
-Variables de entorno principales (`.env.copy` como referencia):
+## Filtering, Ordering, Search (Notes)
+
+Query params for `GET /api/notes/`:
+
+- `is_published` (bool): filter by publication status. Example: `?is_published=true`
+- `user` (int): user id. Example: `?user=5`
+- `category` (str): category title (case‑insensitive). Example: `?category=Work`
+- `created_after` / `created_before` (ISO8601): creation date range. Example: `?created_after=2024-10-01T00:00:00Z`
+- `ordering` (str): fields: `created_at`, `category`; prefix with `-` for descending. Example: `?ordering=-created_at`
+- `search` (str): full‑text search on `title` + `description`. Example: `?search=django`
+
+Notes:
+- Full‑text search requires PostgreSQL (`SearchVector`, `SearchQuery`). Not available on SQLite.
+
+## Pagination
+
+- Strategy: Page Number pagination (DRF).
+- Page size: `20` by default.
+- Param: `page`. Example: `GET /api/notes/?page=2`.
+- Response shape: `{ count, next, previous, results: [...] }`.
+
+## Configuration
+
+- Django settings (relevant):
+  - `REST_FRAMEWORK.DEFAULT_AUTHENTICATION_CLASSES = [JWTAuthentication]`
+  - `REST_FRAMEWORK.DEFAULT_PERMISSION_CLASSES = [AllowAny]`
+  - `REST_FRAMEWORK.DEFAULT_FILTER_BACKENDS = [DjangoFilterBackend]`
+  - `REST_FRAMEWORK.DEFAULT_PAGINATION_CLASS = PageNumberPagination`
+  - `REST_FRAMEWORK.PAGE_SIZE = 20`
+  - `SIMPLE_JWT.ACCESS_TOKEN_LIFETIME = 5m`, `REFRESH_TOKEN_LIFETIME = 1d`
+- CORS: `CORS_ALLOWED_ORIGINS = []` (configure for your frontend domains).
+
+### Environment Variables (.env)
 
 - `DJANGO_SECRET_KEY`, `DEBUG`, `DJANGO_ALLOWED_HOSTS`
-- `DATABASE_ENGINE`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_HOST`, `DATABASE_PORT`
+- `DATABASE_ENGINE` (e.g. `postgresql` or `sqlite3`)
+- `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_HOST`, `DATABASE_PORT`
 
-## Ejecutar con Docker
+## Running Locally
 
-1) Copiar `.env.copy` a `.env` y ajustar valores.
-2) `docker compose up --build` (levanta Postgres y la app en `:8000`).
+Prereqs: Python 3.12+ and virtualenv.
 
-## Ejecutar local (sin Docker)
+1) Create and activate venv
+   - `python -m venv .venv && source .venv/bin/activate`
+2) Install dependencies
+   - `pip install -r requirements.txt`
+3) Configure environment
+   - Copy `.env.copy` to `.env` and adjust values (or rely on SQLite defaults).
+4) Migrate and create admin
+   - `python manage.py migrate`
+   - `python manage.py createsuperuser`
+5) Run server
+   - `python manage.py runserver`
 
-- Python 3.13 recomendado
-- `python -m venv .venv && source .venv/bin/activate`
-- `pip install -r requirements.txt`
-- Exportar variables de entorno mínimas (o usar SQLite por defecto)
-- `python manage.py migrate`
-- `python manage.py createsuperuser`
-- `python manage.py runserver`
+## Running with Docker
 
-## Uso básico
+1) Copy `.env.copy` to `.env` and set DB creds.
+2) Build and start services
+   - `docker compose up --build`
+3) App runs at `http://localhost:8000/` (PostgreSQL provided by compose).
 
-1) Crear superusuario y obtener token: `POST /api/token/`.
-2) Autenticar peticiones con header `Authorization: Bearer <access>`.
-3) Crear notas con `POST /api/notes/` (se asigna automáticamente el usuario autenticado).
-4) Editar/eliminar notas propias o como admin.
+## Quick Usage Examples (curl)
+
+- Obtain token
+  - `curl -X POST http://localhost:8000/api/token/ -d 'username=admin&password=secret'`
+- List published notes, ordered desc, page 2
+  - `curl "http://localhost:8000/api/notes/?ordering=-created_at&page=2"`
+- Full‑text search (Postgres)
+  - `curl "http://localhost:8000/api/notes/?search=backend"`
+- Filter by category and date
+  - `curl "http://localhost:8000/api/notes/?category=Work&created_after=2024-10-01T00:00:00Z"`
+- Create a note (authenticated)
+  - `curl -X POST http://localhost:8000/api/notes/ \`
+    `-H "Authorization: Bearer <access>" -H "Content-Type: application/json" \`
+    `-d '{"title":"Hello","description":"World","category":1,"is_published":true}'`
+- Get my notes
+  - `curl -H "Authorization: Bearer <access>" http://localhost:8000/api/notes/my-notes/`
+
+## Project Structure (high level)
+
+```
+basiccrud/            Django project settings and URLs
+notes/                Notes & Categories app (models, views, filters, serializers)
+accounts/             Admin endpoints for Users, Groups, Permissions
+Dockerfile, compose.yml  Containerized dev setup with PostgreSQL
+```
+
+## Notes and Caveats
+
+- Full‑text search is implemented using PostgreSQL features. If you run on SQLite, use filters/ordering but omit `search`.
+- The browsable API at `/api-auth/` is useful for manual testing with session login.
+
+---
+
+This repository represents my first project built with Django and DRF.
